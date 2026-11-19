@@ -4,12 +4,33 @@ Run:  uvicorn app.main:app --reload --port 8084
   or: python -m app.main
 """
 import os
+from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
+import py_eureka_client.eureka_client as eureka_client
 
 from app.routers import notification
 
 PORT = int(os.getenv("PORT", "8084"))
+
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    await eureka_client.init_async(
+        eureka_server="http://localhost:8761/eureka",
+        app_name="NOTIFICATION",
+        instance_host="localhost",
+        instance_ip="127.0.0.1",
+        instance_port=PORT,
+    )
+    print(f"Service NOTIFICATION registered on port {PORT}")
+
+    try:
+        yield
+    finally:
+        await eureka_client.stop_async()
+        print("Service NOTIFICATION deregistered from Eureka")
+
 
 app = FastAPI(
     title="Notification Microservice API",
@@ -24,6 +45,7 @@ app = FastAPI(
     docs_url="/swagger-ui",       # Swagger UI
     openapi_url="/v3/api-docs",   # OpenAPI JSON
     redoc_url="/redoc",           # alternative documentation
+    lifespan=lifespan,
 )
 
 app.include_router(notification.router)
