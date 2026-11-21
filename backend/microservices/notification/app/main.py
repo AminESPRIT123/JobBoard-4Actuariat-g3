@@ -22,6 +22,8 @@ async def lifespan(app: FastAPI):
         instance_host="localhost",
         instance_ip="127.0.0.1",
         instance_port=PORT,
+        health_check_url=f"http://localhost:{PORT}/health",
+        status_page_url=f"http://localhost:{PORT}/info",
     )
     print(f"Service NOTIFICATION registered on port {PORT}")
 
@@ -47,7 +49,16 @@ app = FastAPI(
     redoc_url="/redoc",           # alternative documentation
     lifespan=lifespan,
 )
+@app.get("/health")
+def health():
+    return {"status": "UP"}
 
+@app.get("/info")
+def info():
+    return {
+        "name": "NOTIFICATION",
+        "version": app.version,
+    }
 app.include_router(notification.router)
 
 # TODO (students): if you add other routers, include them here.

@@ -2,6 +2,7 @@ const express = require('express');
 const swaggerUi = require('swagger-ui-express');
 const openapiSpec = require('./config/swagger');
 const meetingRoutes = require('./routes/meeting.routes');
+const packageJson = require('../package.json');
 
 const app = express();
 
@@ -10,6 +11,15 @@ app.use(express.json());
 // ---- Swagger documentation ----
 app.get('/v3/api-docs', (req, res) => res.json(openapiSpec));
 app.use('/swagger-ui', swaggerUi.serve, swaggerUi.setup(openapiSpec));
+app.get('/health', (req, res) => {
+  res.status(200).json({ status: 'UP' });
+});
+app.get('/info', (req, res) => {
+  res.status(200).json({
+    name: packageJson.name,
+    version: packageJson.version,
+  });
+});
 
 // ---- API routes ----
 app.use('/api/meetings', meetingRoutes);

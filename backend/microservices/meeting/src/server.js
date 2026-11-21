@@ -14,7 +14,8 @@ const eurekaClient = new Eureka({
       '$': PORT,
       '@enabled': 'true',
     },
-    statusPageUrl: `http://localhost:${PORT}/swagger-ui`,
+    healthCheckUrl: `http://localhost:${PORT}/health`,
+    statusPageUrl: `http://localhost:${PORT}/info`,
     dataCenterInfo: {
       '@class': 'com.netflix.appinfo.InstanceInfo$DefaultDataCenterInfo',
       name: 'MyOwn',
