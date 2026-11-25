@@ -1,42 +1,45 @@
-const { Eureka } = require('eureka-js-client');
 const app = require('./app');
+const { Eureka } = require('eureka-js-client');
 
-const PORT = process.env.PORT || 8083;
+const port = Number(process.env.PORT || 8083);
+const baseUrl = `http://localhost:${port}`;
 
-const eurekaClient = new Eureka({
-  instance: {
-    app: 'MEETING',
-    vipAddress: 'MEETING',
-    instanceId: `MEETING:${PORT}`,
-    hostName: 'localhost',
-    ipAddr: '127.0.0.1',
-    port: {
-      '$': PORT,
-      '@enabled': 'true',
+const client = new Eureka({
+    instance: {
+        app: 'MEETING',
+        instanceId: `localhost:meeting:${port}`,
+        hostName: 'localhost',
+        ipAddr: '127.0.0.1',
+        port: { $: port, '@enabled': true },
+        vipAddress: 'meeting',
+        healthCheckUrl: `${baseUrl}/health`,
+        statusPageUrl: `${baseUrl}/info`,
+        dataCenterInfo: {
+            '@class': 'com.netflix.appinfo.InstanceInfo$DefaultDataCenterInfo',
+            name: 'MyOwn',
+        },
     },
-    healthCheckUrl: `http://localhost:${PORT}/health`,
-    statusPageUrl: `http://localhost:${PORT}/info`,
-    dataCenterInfo: {
-      '@class': 'com.netflix.appinfo.InstanceInfo$DefaultDataCenterInfo',
-      name: 'MyOwn',
+    eureka: {
+        host: 'localhost',
+        port: 8761,
+        servicePath: '/eureka/apps/',
+        fetchRegistry: false,
     },
-  },
-  eureka: {
-    host: 'localhost',
-    port: 8761,
-    servicePath: '/eureka/apps/',
-  },
 });
 
-app.listen(PORT, () => {
-  console.log(`Meeting service running on port ${PORT}`);
+const server = app.listen(port, () => {
+    console.log(`Meeting disponible sur ${baseUrl}/api/meetings/hello`);
 
-  eurekaClient.start((error) => {
-    if (error) {
-      console.error('Eureka registration failed:', error);
-      return;
-    }
+    client.start((error) => {
+        if (error) {
+            console.error('Inscription Eureka échouée', error);
+            return;
+        }
 
-    console.log(`Service MEETING registered on port ${PORT}`);
-  });
+        console.log(`MEETING inscrit dans Eureka sur le port ${port}`);
+    });
+});
+
+process.once('SIGINT', () => {
+    client.stop(() => server.close());
 });

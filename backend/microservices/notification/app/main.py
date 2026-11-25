@@ -1,67 +1,60 @@
-"""Notification microservice - entry point.
+"""Notification microservice - entry point."""
 
-Run:  uvicorn app.main:app --reload --port 8084
-  or: python -m app.main
-"""
 import os
 from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
-import py_eureka_client.eureka_client as eureka_client
+from py_eureka_client.eureka_client import EurekaClient
 
 from app.routers import notification
 
 PORT = int(os.getenv("PORT", "8084"))
+BASE_URL = f"http://localhost:{PORT}"
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    await eureka_client.init_async(
-        eureka_server="http://localhost:8761/eureka",
+    client = EurekaClient(
+        eureka_server="http://localhost:8761/eureka/",
         app_name="NOTIFICATION",
+        instance_id=f"localhost:notification:{PORT}",
         instance_host="localhost",
         instance_ip="127.0.0.1",
         instance_port=PORT,
-        health_check_url=f"http://localhost:{PORT}/health",
-        status_page_url=f"http://localhost:{PORT}/info",
+        health_check_url=f"{BASE_URL}/health",
+        status_page_url=f"{BASE_URL}/info",
+        should_discover=False,
     )
-    print(f"Service NOTIFICATION registered on port {PORT}")
-
+    await client.start()
     try:
         yield
     finally:
-        await eureka_client.stop_async()
-        print("Service NOTIFICATION deregistered from Eureka")
+        await client.stop()
 
 
 app = FastAPI(
+    lifespan=lifespan,
     title="Notification Microservice API",
     version="1.0.0",
-    description=(
-        "Notification microservice (Python / FastAPI, no database). "
-        "Only the hello endpoint is implemented; the notification logic is to be developed by students."
-    ),
+    description="Notification microservice (Python / FastAPI, no database).",
     contact={"name": "Badia Abouhdid"},
-    servers=[{"url": f"http://localhost:{PORT}", "description": "Local"}],
-    # Same URLs as the other microservices of the project
-    docs_url="/swagger-ui",       # Swagger UI
-    openapi_url="/v3/api-docs",   # OpenAPI JSON
-    redoc_url="/redoc",           # alternative documentation
-    lifespan=lifespan,
+    servers=[{"url": BASE_URL, "description": "Local"}],
+    docs_url="/swagger-ui",
+    openapi_url="/v3/api-docs",
+    redoc_url="/redoc",
 )
+
+app.include_router(notification.router)
+
+
 @app.get("/health")
 def health():
     return {"status": "UP"}
 
+
 @app.get("/info")
 def info():
-    return {
-        "name": "NOTIFICATION",
-        "version": app.version,
-    }
-app.include_router(notification.router)
-
-# TODO (students): if you add other routers, include them here.
+    return {"name": "notification", "version": app.version}
 
 
 if __name__ == "__main__":
